@@ -36,7 +36,7 @@ def get_pithos_credentials(cloud=None, auth_url=None, token=None):
 
 
 class PithosAPI:
-    def __init__(self, api_url, account, token):
+    def __init__(self, api_url, account, token, ttl):
         self.tree_children = {}
         self.tree_expire = {}
         self.tree_info_expire = {}
@@ -44,7 +44,7 @@ class PithosAPI:
         self.api_url = api_url
         self.account = account
         self.token = token
-        self.ttl = 10
+        self.ttl = ttl
         self.pithos = PithosClient(self.api_url, token, account,
                                    container=None)
         self.pithos_rest = PithosRestClient(self.api_url, token, account,
@@ -161,8 +161,8 @@ class PithosAPI:
 
 
 class PithosFuse(LoggingMixIn, Operations):
-    def __init__(self, api_url, account, token, logfile=None):
-        self.pithos_api = PithosAPI(api_url, account, token)
+    def __init__(self, api_url, account, token, ttl=0):
+        self.pithos_api = PithosAPI(api_url, account, token, ttl)
         self.files = {}
 
     def file_rename(self, old, new):
@@ -349,6 +349,10 @@ def main():
         dest='token',
         metavar='TOKEN',
         help='Access Token')
+    common_group.add_option(
+        '--ttl',
+        dest='cache_ttl',
+        help='Tree cache expire TTL (default:0)')
 
     debug_group = optparse.OptionGroup(parser, "Debug Options")
     debug_group.add_option(
@@ -410,9 +414,14 @@ def main():
                             options.extra_options.split(","))
         fuse_kv.update(extra_options)
 
-    FUSE(PithosFuse(api_url, account, token),
-         mount_point,
-         **fuse_kv)
+    if options.cache_ttl:
+        FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl)),
+             mount_point,
+             **fuse_kv)
+    else:
+        FUSE(PithosFuse(api_url, account, token),
+             mount_point,
+             **fuse_kv)
 
 if __name__ == "__main__":
     main()
