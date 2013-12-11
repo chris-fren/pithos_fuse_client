@@ -12,6 +12,10 @@ from kamaki.clients.pithos import PithosClient
 from kamaki.clients.pithos.rest_api import PithosRestClient
 from kamaki.clients import ClientError
 
+__author__ = 'Chrysostomos Nanakos, Christos Stavrakakis'
+__license__ = 'LGPL'
+__version__ = '0.1'
+__email__ = 'cnanakos@grnet.gr, cstavr@grnet.gr'
 
 API_URL = 'https://pithos.okeanos.grnet.gr/object-store/v1/'
 
