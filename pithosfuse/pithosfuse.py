@@ -8,6 +8,8 @@ import optparse
 
 from stat import S_IFDIR, S_IFREG
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
+from kamaki.cli import config as kamaki_config
+from kamaki.clients.astakos import AstakosClient
 from kamaki.clients.pithos import PithosClient
 from kamaki.clients.pithos.rest_api import PithosRestClient
 from kamaki.clients import ClientError
@@ -17,19 +19,34 @@ __license__ = 'LGPL'
 __version__ = '0.1'
 __email__ = 'cnanakos@grnet.gr, cstavr@grnet.gr'
 
-API_URL = 'https://pithos.okeanos.grnet.gr/object-store/v1/'
+
+def get_pithos_credentials(cloud=None, auth_url=None, token=None):
+    if auth_url is None:
+        config = kamaki_config.Config()
+        if cloud is None:
+            cloud = config.get("global", "default_cloud")
+        auth_url = config.get_cloud(cloud, "url")
+        token = config.get_cloud(cloud, "token")
+
+    astakos_client = AstakosClient(auth_url, token)
+    auth = astakos_client.authenticate()
+    account = auth["access"]["token"]["tenant"]["id"]
+    api_url = astakos_client.get_service_endpoints("object-store")["publicURL"]
+    return api_url, account, token
 
 
 class PithosAPI:
-    def __init__(self, account, token):
+    def __init__(self, api_url, account, token):
         self.tree_children = {}
         self.tree_expire = {}
         self.tree_info_expire = {}
         self.tree_info_children = {}
+        self.api_url = api_url
         self.account = account
         self.token = token
         self.ttl = 10
-        self.pithos = PithosClient(API_URL, token, account, container=None)
+        self.pithos = PithosClient(self.api_url, token, account,
+                                   container=None)
         self.containers = self.pithos.list_containers()
         if self.containers is None:
             raise FuseOSError(errno.EPERM)
@@ -59,7 +76,8 @@ class PithosAPI:
             del pithosPath[1]
             pithosPath = "/%s" % '/'.join(pithosPath)
             pithosPath = os.path.normpath(pithosPath)
-            pithos = PithosClient(API_URL, self.token, self.account, container)
+            pithos = PithosClient(self.api_url, self.token, self.account,
+                                  container)
             objects = pithos.list_objects_in_path(pithosPath)
             new_objs = []
             trm = pithosPath.lstrip('/')
@@ -75,7 +93,8 @@ class PithosAPI:
             if self.tree_info_expire[path] >= time.time():
                 return self.tree_info_children[path]
         container = self.get_container(path)
-        pithos = PithosClient(API_URL, self.token, self.account, container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              container)
         try:
             objs = pithos.get_object_info('/'.join(path.split('/')[2:]))
             self.tree_info_children[path] = objs
@@ -87,38 +106,44 @@ class PithosAPI:
     def create_container(self, path):
         container = self.get_container(path)
         new_container = self.get_object(path)
-        pithos = PithosClient(API_URL, self.token, self.account, container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              container)
         pithos.create_container(new_container)
 
     def delete_container(self, path):
         container = self.get_container(path)
         unlink_container = self.get_object(path)
-        pithos = PithosClient(API_URL, self.token, self.account, container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              container)
         pithos.purge_container(unlink_container)
 
     def create_directory(self, path):
         container = self.get_container(path)
         new_directory = self.get_object(path)
-        pithos = PithosRestClient(API_URL, self.token, self.account, container)
+        pithos = PithosRestClient(self.api_url, self.token, self.account,
+                                  container)
         pithos.object_put(new_directory, content_length=0,
                           content_type='application/directory')
 
     def delete_directory(self, path):
         container = self.get_container(path)
         unlink_directory = self.get_object(path)
-        pithos = PithosRestClient(API_URL, self.token, self.account, container)
+        pithos = PithosRestClient(self.api_url, self.token, self.account,
+                                  container)
         pithos.object_delete(unlink_directory, delimiter='/')
 
     def download_object(self, path, fd):
         container = self.get_container(path)
         obj = self.get_object(path)
-        pithos = PithosClient(API_URL, self.token, self.account, container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              container)
         pithos.download_object(obj, fd)
 
     def unlink_object(self, path):
         container = self.get_container(path)
         obj = self.get_object(path)
-        pithos = PithosClient(API_URL, self.token, self.account, container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              container)
         pithos.del_object(obj, delimiter='/')
 
     def upload_object(self, path, fd):
@@ -127,7 +152,8 @@ class PithosAPI:
         fd.seek(0)
         container = self.get_container(path)
         obj = self.get_object(path)
-        pithos = PithosClient(API_URL, self.token, self.account, container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              container)
         pithos.upload_object(obj, fd, size=size)
         fd.seek(0)
 
@@ -136,14 +162,15 @@ class PithosAPI:
         new_container = self.get_container(new)
         old_obj = self.get_object(old)
         new_obj = self.get_object(new)
-        pithos = PithosClient(API_URL, self.token, self.account, old_container)
+        pithos = PithosClient(self.api_url, self.token, self.account,
+                              old_container)
         pithos.move_object(old_container, old_obj, new_container, new_obj,
                            delimiter='/')
 
 
 class PithosFuse(LoggingMixIn, Operations):
-    def __init__(self, account, token, logfile=None):
-        self.pithos_api = PithosAPI(account, token)
+    def __init__(self, api_url, account, token, logfile=None):
+        self.pithos_api = PithosAPI(api_url, account, token)
         self.files = {}
 
     def file_rename(self, old, new):
@@ -312,25 +339,24 @@ class PithosFuse(LoggingMixIn, Operations):
 
 
 def main():
-    usage = "usage %prog [options]"
+    usage = "usage %prog [options] MOUNTDIR"
     parser = optparse.OptionParser(description="Pithos+ FUSE Filysystem",
                                    usage=usage)
-    required_group = optparse.OptionGroup(parser, "Required Options")
-    required_group.add_option(
-        '-u', '--username',
-        dest='username',
+    common_group = optparse.OptionGroup(parser, "Common Options")
+    common_group.add_option(
+        '-c', '--cloud',
+        dest="cloud",
+        help="Use this kamaki 'cloud' instead of default")
+    common_group.add_option(
+        '-u', '--url',
+        dest='auth_url',
         metavar='ACCOUNT',
-        help='Pithos+ Username')
-    required_group.add_option(
-        '-p', '--password',
-        dest='password',
+        help='Authentication URL')
+    common_group.add_option(
+        '-t', '--token',
+        dest='token',
         metavar='TOKEN',
-        help='Pithos+ Token')
-    required_group.add_option(
-        '-m', '--mount_point',
-        dest='mount_point',
-        metavar='MOUNTDIR',
-        help='Directory to mount filesystem')
+        help='Access Token')
 
     debug_group = optparse.OptionGroup(parser, "Debug Options")
     debug_group.add_option(
@@ -358,16 +384,24 @@ def main():
         dest='extra_options',
         help='Comma seperated key=val options for FUSE')
 
-    parser.add_option_group(required_group)
+    parser.add_option_group(common_group)
     parser.add_option_group(debug_group)
     parser.add_option_group(extra_group)
 
     options, args = parser.parse_args()
 
-    for attr in ["username", "password", "mount_point"]:
-        if getattr(options, attr) is None:
-            parser.print_help()
-            parser.error("Error: Option '--%s' is required!" % attr)
+    if len(args) != 1:
+        parser.print_help()
+        parser.error("Invalid number of arguments!")
+
+    mount_point = args[0]
+
+    if options.auth_url and not options.token:
+        parser.error("--token option required when '--url' option is used")
+
+    api_url, account, token = get_pithos_credentials(options.cloud,
+                                                     options.auth_url,
+                                                     options.token)
 
     fuse_kv = {
         "debug": options.debug,
@@ -380,9 +414,10 @@ def main():
                             options.extra_options.split(","))
         fuse_kv.update(extra_options)
 
-    FUSE(PithosFuse(options.username, options.password),
-         options.mount_point,
+    FUSE(PithosFuse(api_url, account, token),
+         mount_point,
          **fuse_kv)
 
 if __name__ == "__main__":
     main()
+
