@@ -47,6 +47,8 @@ class PithosAPI:
         self.ttl = 10
         self.pithos = PithosClient(self.api_url, token, account,
                                    container=None)
+        self.pithos_rest = PithosRestClient(self.api_url, token, account,
+                                            container=None)
         self.containers = self.pithos.list_containers()
         if self.containers is None:
             raise FuseOSError(errno.EPERM)
@@ -76,9 +78,8 @@ class PithosAPI:
             del pithosPath[1]
             pithosPath = "/%s" % '/'.join(pithosPath)
             pithosPath = os.path.normpath(pithosPath)
-            pithos = PithosClient(self.api_url, self.token, self.account,
-                                  container)
-            objects = pithos.list_objects_in_path(pithosPath)
+            self.pithos.container = container
+            objects = self.pithos.list_objects_in_path(pithosPath)
             new_objs = []
             trm = pithosPath.lstrip('/')
             for obj in objects:
@@ -93,10 +94,9 @@ class PithosAPI:
             if self.tree_info_expire[path] >= time.time():
                 return self.tree_info_children[path]
         container = self.get_container(path)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              container)
+        self.pithos.container = container
         try:
-            objs = pithos.get_object_info('/'.join(path.split('/')[2:]))
+            objs = self.pithos.get_object_info('/'.join(path.split('/')[2:]))
             self.tree_info_children[path] = objs
             self.tree_info_expire[path] = time.time() + self.ttl
             return self.tree_info_children[path]
@@ -106,45 +106,39 @@ class PithosAPI:
     def create_container(self, path):
         container = self.get_container(path)
         new_container = self.get_object(path)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              container)
-        pithos.create_container(new_container)
+        self.pithos.container = container
+        self.pithos.create_container(new_container)
 
     def delete_container(self, path):
         container = self.get_container(path)
         unlink_container = self.get_object(path)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              container)
-        pithos.purge_container(unlink_container)
+        self.pithos.container = container
+        self.pithos.purge_container(unlink_container)
 
     def create_directory(self, path):
         container = self.get_container(path)
         new_directory = self.get_object(path)
-        pithos = PithosRestClient(self.api_url, self.token, self.account,
-                                  container)
-        pithos.object_put(new_directory, content_length=0,
+        self.pithos.container = container
+        self.pithos.object_put(new_directory, content_length=0,
                           content_type='application/directory')
 
     def delete_directory(self, path):
         container = self.get_container(path)
         unlink_directory = self.get_object(path)
-        pithos = PithosRestClient(self.api_url, self.token, self.account,
-                                  container)
-        pithos.object_delete(unlink_directory, delimiter='/')
+        self.pithos_rest.container = container
+        self.pithos_rest.object_delete(unlink_directory, delimiter='/')
 
     def download_object(self, path, fd):
         container = self.get_container(path)
         obj = self.get_object(path)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              container)
-        pithos.download_object(obj, fd)
+        self.pithos.container = container
+        self.pithos.download_object(obj, fd)
 
     def unlink_object(self, path):
         container = self.get_container(path)
         obj = self.get_object(path)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              container)
-        pithos.del_object(obj, delimiter='/')
+        self.pithos.container = container
+        self.pithos.del_object(obj, delimiter='/')
 
     def upload_object(self, path, fd):
         fd.seek(0, 2)
@@ -152,9 +146,8 @@ class PithosAPI:
         fd.seek(0)
         container = self.get_container(path)
         obj = self.get_object(path)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              container)
-        pithos.upload_object(obj, fd, size=size)
+        self.pithos.container = container
+        self.pithos.upload_object(obj, fd, size=size)
         fd.seek(0)
 
     def rename(self, old, new):
@@ -162,9 +155,8 @@ class PithosAPI:
         new_container = self.get_container(new)
         old_obj = self.get_object(old)
         new_obj = self.get_object(new)
-        pithos = PithosClient(self.api_url, self.token, self.account,
-                              old_container)
-        pithos.move_object(old_container, old_obj, new_container, new_obj,
+        self.pithos.container = old_container
+        self.pithos.move_object(old_container, old_obj, new_container, new_obj,
                            delimiter='/')
 
 
@@ -420,4 +412,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
