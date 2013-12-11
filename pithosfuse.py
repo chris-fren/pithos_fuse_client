@@ -1,17 +1,18 @@
-from errno import EACCES, ENOENT, EIO, EPERM
-from stat import S_IFDIR, S_IFREG
-from sys import argv, exit, stderr
-
 import os
+import sys
+import errno
 import argparse
 import tempfile
 import time
 import datetime
 
-from fuse import FUSE, FuseOSError, Operations, LoggingMixIn, fuse_get_context
+from stat import S_IFDIR, S_IFREG
+from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
 from kamaki.clients.pithos import PithosClient
 from kamaki.clients.pithos.rest_api import PithosRestClient
 from kamaki.clients import ClientError
+
+
 API_URL = 'https://pithos.okeanos.grnet.gr/object-store/v1/'
 
 
@@ -27,7 +28,7 @@ class PithosAPI:
         self.pithos = PithosClient(API_URL, token, account, container=None)
         self.containers = self.pithos.list_containers()
         if self.containers is None:
-            raise FuseOSError(EPERM)
+            raise FuseOSError(errno.EPERM)
 
     def get_container(self, path):
         return path.split('/')[1]
@@ -78,7 +79,6 @@ class PithosAPI:
             return self.tree_info_children[path]
         except ClientError:
             return None
-
 
     def create_container(self, path):
         container = self.get_container(path)
@@ -172,7 +172,7 @@ class PithosFuse(LoggingMixIn, Operations):
 
     def file_upload(self, path):
         if path not in self.files:
-            raise FuseOSError(EIO)
+            raise FuseOSError(errno.EIO)
 
         fileObject = self.file_get(path)
         if fileObject['modified'] is False:
@@ -208,12 +208,12 @@ class PithosFuse(LoggingMixIn, Operations):
                     ctime = time.mktime(epoch_str.timetuple())
                     st['st_ctime'] = st['st_atime'] = st['st_mtime'] = ctime
                     return st
-            raise FuseOSError(ENOENT)
+            raise FuseOSError(errno.ENOENT)
         else:
             name = unicode(os.path.basename(path))
             objects = self.pithos_api.getinfo(path)
             if objects is None:
-                raise FuseOSError(ENOENT)
+                raise FuseOSError(errno.ENOENT)
             elif objects.get('content-type') != 'application/directory':
                 st = dict(st_mode=(S_IFREG | 0644), st_nlink=1,
                           st_size=int(objects.get('content-length', 0)),
@@ -308,8 +308,7 @@ class PithosFuse(LoggingMixIn, Operations):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-                                     description='Pithos+ FUSE Filesystem')
+    parser = argparse.ArgumentParser(description='Pithos+ FUSE Filesystem')
     parser.add_argument(
         '-d', '--debug', default=False, action='store_true',
         help='Turn on debug output (alomg with -f)')
@@ -329,7 +328,7 @@ def main():
         'mount_point', metavar='MOUNTDIR',
         help='Directory to mount filesystem')
 
-    args = parser.parse_args(argv[1:])
+    args = parser.parse_args(sys.argv[1:])
 
     account = args.__dict__.pop('username')
     token = args.__dict__.pop('password')
@@ -337,14 +336,13 @@ def main():
 
     options_str = args.__dict__.pop('options')
 
-    options = dict([(kv.split('=', 1) + [Trunue])[:2] for kv in (options_str
-                                                                 and
-                                            options_str.split(',')) or []])
+    options = dict([(kv.split('=', 1) + [True])[:2]
+                    for kv in (options_str and options_str.split(',')) or []])
 
     fuse_args = args.__dict__.copy()
     fuse_args.update(options)
 
-    fuse = FUSE(PithosFuse(account, token), mount_point, **fuse_args)
+    FUSE(PithosFuse(account, token), mount_point, **fuse_args)
 
 if __name__ == "__main__":
     main()
