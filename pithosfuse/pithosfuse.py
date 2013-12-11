@@ -367,8 +367,7 @@ def main():
     for attr in ["username", "password", "mount_point"]:
         if getattr(options, attr) is None:
             parser.print_help()
-            sys.stderr.write("\nError: Option '--%s' is required!\n" % attr)
-            sys.exit(-1)
+            parser.error("Error: Option '--%s' is required!" % attr)
 
     fuse_kv = {
         "debug": options.debug,
