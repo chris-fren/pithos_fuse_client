@@ -1,10 +1,10 @@
 import os
 import sys
 import errno
-import argparse
 import tempfile
 import time
 import datetime
+import optparse
 
 from stat import S_IFDIR, S_IFREG
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
@@ -312,41 +312,78 @@ class PithosFuse(LoggingMixIn, Operations):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Pithos+ FUSE Filesystem')
-    parser.add_argument(
-        '-d', '--debug', default=False, action='store_true',
-        help='Turn on debug output (alomg with -f)')
-    parser.add_argument(
-        '-s', '--nothreads', default=False, action='store_true',
-        help='Disallow multi-threaded operation. Run with only one thread')
-    parser.add_argument(
-        '-f', '--foreground', default=False, action='store_true',
-        help='Run in foreground')
-    parser.add_argument(
-        '-o', '--options', help='Add extra FUSE options')
-    parser.add_argument(
-        'username', metavar='ACCOUNT', help='Pithos+ Username')
-    parser.add_argument(
-        'password', metavar='TOKEN', help='Pithos+ Token')
-    parser.add_argument(
-        'mount_point', metavar='MOUNTDIR',
+    usage = "usage %prog [options]"
+    parser = optparse.OptionParser(description="Pithos+ FUSE Filysystem",
+                                   usage=usage)
+    required_group = optparse.OptionGroup(parser, "Required Options")
+    required_group.add_option(
+        '-u', '--username',
+        dest='username',
+        metavar='ACCOUNT',
+        help='Pithos+ Username')
+    required_group.add_option(
+        '-p', '--password',
+        dest='password',
+        metavar='TOKEN',
+        help='Pithos+ Token')
+    required_group.add_option(
+        '-m', '--mount_point',
+        dest='mount_point',
+        metavar='MOUNTDIR',
         help='Directory to mount filesystem')
 
-    args = parser.parse_args(sys.argv[1:])
+    debug_group = optparse.OptionGroup(parser, "Debug Options")
+    debug_group.add_option(
+        '-d', '--debug',
+        dest='debug',
+        default=False,
+        action='store_true',
+        help='Turn on debug output (alomg with -f)')
+    debug_group.add_option(
+        '-s', '--nothreads',
+        dest='nothreads',
+        default=False,
+        action='store_true',
+        help='Disallow multi-threaded operation. Run with only one thread')
+    debug_group.add_option(
+        '-f', '--foreground',
+        dest='foreground',
+        default=False,
+        action='store_true',
+        help='Run in foreground')
 
-    account = args.__dict__.pop('username')
-    token = args.__dict__.pop('password')
-    mount_point = args.__dict__.pop('mount_point')
+    extra_group = optparse.OptionGroup(parser, "Extra options")
+    extra_group.add_option(
+        '-o', '--options',
+        dest='extra_options',
+        help='Comma seperated key=val options for FUSE')
 
-    options_str = args.__dict__.pop('options')
+    parser.add_option_group(required_group)
+    parser.add_option_group(debug_group)
+    parser.add_option_group(extra_group)
 
-    options = dict([(kv.split('=', 1) + [True])[:2]
-                    for kv in (options_str and options_str.split(',')) or []])
+    options, args = parser.parse_args()
 
-    fuse_args = args.__dict__.copy()
-    fuse_args.update(options)
+    for attr in ["username", "password", "mount_point"]:
+        if getattr(options, attr) is None:
+            parser.print_help()
+            sys.stderr.write("\nError: Option '--%s' is required!\n" % attr)
+            sys.exit(-1)
 
-    FUSE(PithosFuse(account, token), mount_point, **fuse_args)
+    fuse_kv = {
+        "debug": options.debug,
+        "foreground": options.foreground,
+        "nothreads": options.nothreads
+    }
+
+    if options.extra_options:
+        extra_options = map(lambda kv: kv.split('='),
+                            options.extra_options.split(","))
+        fuse_kv.update(extra_options)
+
+    FUSE(PithosFuse(options.username, options.password),
+         options.mount_point,
+         **fuse_kv)
 
 if __name__ == "__main__":
     main()
