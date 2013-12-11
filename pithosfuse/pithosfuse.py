@@ -387,6 +387,10 @@ def main():
         parser.error("Invalid number of arguments!")
 
     mount_point = args[0]
+    if not os.path.exists(mount_point):
+        os.makedirs(mount_point)
+    elif not os.path.isdir(mount_point):
+        parser.error("mount point must be a directory!")
 
     if options.auth_url and not options.token:
         parser.error("--token option required when '--url' option is used")
