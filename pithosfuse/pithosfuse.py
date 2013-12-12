@@ -5,6 +5,7 @@ import tempfile
 import time
 import datetime
 import optparse
+import logging
 
 from stat import S_IFDIR, S_IFREG
 from fuse import FUSE, FuseOSError, Operations, LoggingMixIn
@@ -120,7 +121,7 @@ class PithosAPI:
         new_directory = self.get_object(path)
         self.pithos.container = container
         self.pithos.object_put(new_directory, content_length=0,
-                          content_type='application/directory')
+                               content_type='application/directory')
 
     def delete_directory(self, path):
         container = self.get_container(path)
@@ -157,7 +158,7 @@ class PithosAPI:
         new_obj = self.get_object(new)
         self.pithos.container = old_container
         self.pithos.move_object(old_container, old_obj, new_container, new_obj,
-                           delimiter='/')
+                                delimiter='/')
 
     def account_info(self):
         acct_info = self.pithos.get_account_info()
@@ -167,7 +168,7 @@ class PithosAPI:
 
 
 class PithosFuse(LoggingMixIn, Operations):
-    def __init__(self, api_url, account, token, ttl=0):
+    def __init__(self, api_url, account, token, ttl=0, logger):
         self.pithos_api = PithosAPI(api_url, account, token, ttl)
         self.files = {}
 
@@ -341,6 +342,19 @@ class PithosFuse(LoggingMixIn, Operations):
     releasedir = None
 
 
+def create_logger(debug=False):
+    logger = logging.getLogger("pithosfuse")
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+    logger.addHandler(handler)
+    logger.propagate = False
+    if debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.INFO)
+    return logger
+
+
 def main():
     usage = "usage %prog [options] MOUNTDIR"
     parser = optparse.OptionParser(description="Pithos+ FUSE Filysystem",
@@ -402,8 +416,11 @@ def main():
         parser.print_help()
         parser.error("Invalid number of arguments!")
 
+    logger = create_logger(options.debug)
+
     mount_point = args[0]
     if not os.path.exists(mount_point):
+        logger.info("Creating mount directory '%s'", mount_point)
         os.makedirs(mount_point)
     elif not os.path.isdir(mount_point):
         parser.error("mount point must be a directory!")
@@ -414,6 +431,9 @@ def main():
     api_url, account, token = get_pithos_credentials(options.cloud,
                                                      options.auth_url,
                                                      options.token)
+
+    logger.info("Pithos+ API URL: '%s'", api_url)
+    logger.info("Pithos+ API Account: '%s'", account)
 
     fuse_kv = {
         "debug": options.debug,
@@ -426,9 +446,13 @@ def main():
                             options.extra_options.split(","))
         fuse_kv.update(extra_options)
 
-    FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl)),
-             mount_point,
-             **fuse_kv)
+    if not options.foreground:
+        logger.info("Starting Pithos+ FUSE in detached mode..")
+
+    FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl), logger),
+         mount_point,
+         **fuse_kv)
+
 
 if __name__ == "__main__":
     main()
