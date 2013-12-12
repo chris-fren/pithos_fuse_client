@@ -246,8 +246,11 @@ class PithosFuse(LoggingMixIn, Operations):
             if objects is None:
                 raise FuseOSError(errno.ENOENT)
             elif objects.get('content-type') != 'application/directory':
+                size = int(objects.get('content-length', 0))
+                blocks = int(size / 512)
+                blocks_al = blocks + (8 - (blocks % 8))
                 st = dict(st_mode=(S_IFREG | 0644), st_nlink=1,
-                          st_size=int(objects.get('content-length', 0)),
+                          st_size=size, st_blksize=512, st_blocks=blocks_al,
                           st_uid=os.geteuid(), st_gid=os.getgid())
             else:
                 st = dict(st_mode=(S_IFDIR | 0755), st_nlink=2,
