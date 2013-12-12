@@ -11,7 +11,7 @@
 pithosfuse is a file system in user space that let you browse your
 Pithos+ files.
 
-### Install
+### INSTALL
 
 pithosfuse requires `fusepy` and `kamaki`. All requirements should be installed
 automatically by `pip` or `distribute`.
