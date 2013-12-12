@@ -1,24 +1,17 @@
-pithosfuse
-==========
+# pithosfuse
 
--------------------------------------------------------
-File system in user space using FUSE and Kamaki client.
--------------------------------------------------------
 
-SYNOPSIS
-========
+### SYNOPSIS
 
     pithosfuse [options] [fuse options] <mount point>
 
 
-DESCRIPTION
-===========
+### DESCRIPTION
 
 pithosfuse is a file system in user space that let you browse your
 Pithos+ files.
 
-Install
-=======
+### Install
 
 pithosfuse requires `fusepy` and `kamaki`. All requirements should be installed
 automatically by `pip` or `distribute`.
@@ -39,8 +32,7 @@ or with distribute::
 * distribute: http://pypi.python.org/pypi/distribute
 
 
-OPTIONS
-=======
+### OPTIONS
 
 -c CLOUD, --cloud=CLOUD         Use this kamaki 'cloud' instead of default
 
@@ -57,3 +49,6 @@ OPTIONS
 
 -o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
                                 Comma seperated key=val options for FUSE
+
+-m POOLSIZE, --max-poolsize=POOLSIZE
+                                Max HTTP Pooled connections (default:8)
