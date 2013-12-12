@@ -1,18 +1,9 @@
-==========
 pithosfuse
 ==========
 
------------------------------------------------------------
-File system in user space using FUSE_ and `Kamaki client`_.
------------------------------------------------------------
-
-:Author: cnanakos
-:Date: 2013-12-12
-:Copyright: Lesser GNU Public License
-:Version: 0.1
-:Manual section: 1
-:Manual group: FUSE
-
+-------------------------------------------------------
+File system in user space using FUSE and Kamaki client.
+-------------------------------------------------------
 
 SYNOPSIS
 ========
@@ -23,14 +14,14 @@ SYNOPSIS
 DESCRIPTION
 ===========
 
-|pithosfuse| is a file system in user space that let you browse your
-|Pithos+| files.
+pithosfuse is a file system in user space that let you browse your
+Pithos+ files.
 
 Install
--------
+=======
 
-|pithosfuse| requires fusepy_ and kamaki_. All requirements should be installed
-automatically by pip_ or distribute_.
+pithosfuse requires `fusepy` and `kamaki`. All requirements should be installed
+automatically by `pip` or `distribute`.
 
 With pip::
 
@@ -40,27 +31,29 @@ or with distribute::
 
     $ python setup.py install
 
-.. |pithosfuse| replace:: pithosfuse
-.. |Pithos+| replace:: Pithos+
 
-.. _fusepy: https://pypi.python.org/pypi/fusepy
-.. _kamaki: https://pypi.python.org/pypi/kamaki
-.. _FUSE: http://fuse.sourceforge.net/
-.. _`pip`: http://pypi.python.org/pypi/pip
-.. _`distribute`: http://pypi.python.org/pypi/distribute
+* fusepy: https://pypi.python.org/pypi/fusepy
+* kamaki: https://pypi.python.org/pypi/kamaki
+* FUSE: http://fuse.sourceforge.net/
+* pip: http://pypi.python.org/pypi/pip
+* distribute: http://pypi.python.org/pypi/distribute
 
 
 OPTIONS
 =======
 
 -c CLOUD, --cloud=CLOUD         Use this kamaki 'cloud' instead of default
+
 -u ACCOUNT, --url=ACCOUNT       Authentication URL
+
 -t TOKEN, --token=TOKEN         Access Token
+
 -d, --debug                     Turn on debug output (alomg with -f)
+
 -s, --nothreads                 Disallow multi-threaded operation.
                                 Run with only one thread
+
 -f, --foreground                Run in foreground
+
 -o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
                                 Comma seperated key=val options for FUSE
-
-.. vim: set ft=rst tw=72 ff=dos:
