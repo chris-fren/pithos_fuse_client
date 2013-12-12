@@ -2,9 +2,9 @@
 pithosfuse
 ==========
 
-------------------------------------------------------------
-File system ins user space using FUSE_ and `Kamaki client`_.
-------------------------------------------------------------
+-----------------------------------------------------------
+File system in user space using FUSE_ and `Kamaki client`_.
+-----------------------------------------------------------
 
 :Author: cnanakos
 :Date: 2013-12-12
@@ -16,6 +16,7 @@ File system ins user space using FUSE_ and `Kamaki client`_.
 
 SYNOPSIS
 ========
+
     pithosfuse [options] [fuse options] <mount point>
 
 
@@ -52,20 +53,14 @@ or with distribute::
 OPTIONS
 =======
 
-Common Options:
-  -c CLOUD, --cloud=CLOUD
-                      Use this kamaki 'cloud' instead of default
-  -u ACCOUNT, --url=ACCOUNT
-                      Authentication URL
-  -t TOKEN, --token=TOKEN
-                      Access Token
+-c CLOUD, --cloud=CLOUD         Use this kamaki 'cloud' instead of default
+-u ACCOUNT, --url=ACCOUNT       Authentication URL
+-t TOKEN, --token=TOKEN         Access Token
+-d, --debug                     Turn on debug output (alomg with -f)
+-s, --nothreads                 Disallow multi-threaded operation.
+                                Run with only one thread
+-f, --foreground                Run in foreground
+-o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
+                                Comma seperated key=val options for FUSE
 
-Debug Options:
-  -d, --debug         Turn on debug output (alomg with -f)
-  -s, --nothreads     Disallow multi-threaded operation. Run with only one
-                        thread
-  -f, --foreground    Run in foreground
-
-Extra options:
-  -o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
-                      Comma seperated key=val options for FUSE
+.. vim: set ft=rst tw=72 ff=dos:
