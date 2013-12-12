@@ -339,11 +339,28 @@ class PithosFuse(LoggingMixIn, Operations):
         fileObject['modified'] = True
         return len(data)
 
-    access = None
+    # Unimplemented Operations
+    readlink = None
+    getdir = None
+    mknod = None
+    symlink = None
+    link = None
+    utime = None
+    setxattr = None
     getxattr = None
     listxattr = None
+    removexattr = None
     opendir = None
     releasedir = None
+    fsyncdir = None
+    init = None
+    destroy = None
+    access = None
+    ftruncate = None
+    fgetattr = None
+    lock = None
+    utimens = None
+    bmap = None
 
 
 def create_logger(debug=False):
