@@ -363,6 +363,7 @@ def main():
     common_group.add_option(
         '--ttl',
         dest='cache_ttl',
+        default=0,
         help='Tree cache expire TTL (default:0)')
 
     debug_group = optparse.OptionGroup(parser, "Debug Options")
@@ -425,12 +426,7 @@ def main():
                             options.extra_options.split(","))
         fuse_kv.update(extra_options)
 
-    if options.cache_ttl:
-        FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl)),
-             mount_point,
-             **fuse_kv)
-    else:
-        FUSE(PithosFuse(api_url, account, token),
+    FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl)),
              mount_point,
              **fuse_kv)
 
