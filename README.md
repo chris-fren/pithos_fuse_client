@@ -43,12 +43,15 @@ or with distribute::
 -d, --debug                     Turn on debug output (alomg with -f)
 
 -s, --nothreads                 Disallow multi-threaded operation.
+
                                 Run with only one thread
 
 -f, --foreground                Run in foreground
 
 -o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
+
                                 Comma seperated key=val options for FUSE
 
 -m POOLSIZE, --max-poolsize=POOLSIZE
+
                                 Max HTTP Pooled connections (default:8)
