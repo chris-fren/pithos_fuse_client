@@ -159,6 +159,12 @@ class PithosAPI:
         self.pithos.move_object(old_container, old_obj, new_container, new_obj,
                            delimiter='/')
 
+    def account_info(self):
+        acct_info = self.pithos.get_account_info()
+        blocks = int(acct_info['x-account-policy-quota']) / 512
+        used = int(acct_info['x-account-bytes-used']) / 512
+        return blocks, used
+
 
 class PithosFuse(LoggingMixIn, Operations):
     def __init__(self, api_url, account, token, ttl=0):
@@ -212,7 +218,9 @@ class PithosFuse(LoggingMixIn, Operations):
         return 0
 
     def statfs(self, path):
-        return dict(f_bsize=512, f_blocks=4096, f_bavail=2048)
+        blocks, used = self.pithos_api.account_info()
+        return dict(f_bsize=512, f_blocks=blocks, f_bavail=(blocks - used),
+                    f_bfree=(blocks-used))
 
     def getattr(self, path, fh=None):
         if path == '/':
