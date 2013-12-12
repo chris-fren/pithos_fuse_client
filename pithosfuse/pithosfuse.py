@@ -50,7 +50,7 @@ class PithosAPI:
                                    container=None)
         self.pithos_rest = PithosRestClient(self.api_url, token, account,
                                             container=None)
-        self.containers = self.pithos.list_containers()
+        self.containers = self.list_containers()
         if self.containers is None:
             raise FuseOSError(errno.EPERM)
 
@@ -168,7 +168,9 @@ class PithosAPI:
 
 
 class PithosFuse(LoggingMixIn, Operations):
-    def __init__(self, api_url, account, token, ttl=0, logger):
+    def __init__(self, api_url, account, token, ttl=0, logger=None):
+        if logger is None:
+            logger = logging.getLogger("")
         self.pithos_api = PithosAPI(api_url, account, token, ttl)
         self.files = {}
 
