@@ -34,24 +34,21 @@ or with distribute::
 
 ### OPTIONS
 
--c CLOUD, --cloud=CLOUD         Use this kamaki 'cloud' instead of default
+> -c CLOUD, --cloud=CLOUD         Use this kamaki 'cloud' instead of default
 
--u ACCOUNT, --url=ACCOUNT       Authentication URL
+> -u ACCOUNT, --url=ACCOUNT       Authentication URL
 
--t TOKEN, --token=TOKEN         Access Token
+> -t TOKEN, --token=TOKEN         Access Token
 
--d, --debug                     Turn on debug output (alomg with -f)
+> -d, --debug                     Turn on debug output (alomg with -f)
 
--s, --nothreads                 Disallow multi-threaded operation.
+> -s, --nothreads                 Disallow multi-threaded operation.
+>> Run with only one thread
 
-                                Run with only one thread
+> -f, --foreground                Run in foreground
 
--f, --foreground                Run in foreground
+> -o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
+>> Comma seperated key=val options for FUSE
 
--o EXTRA_OPTIONS, --options=EXTRA_OPTIONS
-
-                                Comma seperated key=val options for FUSE
-
--m POOLSIZE, --max-poolsize=POOLSIZE
-
-                                Max HTTP Pooled connections (default:8)
+> -m POOLSIZE, --max-poolsize=POOLSIZE
+>> Max HTTP Pooled connections (default:8)
