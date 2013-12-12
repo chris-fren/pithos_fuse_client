@@ -14,6 +14,7 @@ from kamaki.clients.astakos import AstakosClient
 from kamaki.clients.pithos import PithosClient
 from kamaki.clients.pithos.rest_api import PithosRestClient
 from kamaki.clients import ClientError
+from contextlib import contextmanager
 
 __author__ = 'Chrysostomos Nanakos, Christos Stavrakakis'
 __license__ = 'LGPL'
@@ -74,13 +75,12 @@ class PithosAPI:
             self.tree_expire[path] = time.time() + self.ttl
             return self.tree_children[path]
         else:
-            container = self.get_container(path)
             pithosPath = path.split('/')
             del pithosPath[1]
             pithosPath = "/%s" % '/'.join(pithosPath)
             pithosPath = os.path.normpath(pithosPath)
-            self.pithos.container = container
-            objects = self.pithos.list_objects_in_path(pithosPath)
+            with self.path_container(path):
+                objects = self.pithos.list_objects_in_path(pithosPath)
             new_objs = []
             trm = pithosPath.lstrip('/')
             for obj in objects:
@@ -94,61 +94,54 @@ class PithosAPI:
         if path in self.tree_info_expire:
             if self.tree_info_expire[path] >= time.time():
                 return self.tree_info_children[path]
-        container = self.get_container(path)
-        self.pithos.container = container
-        try:
-            objs = self.pithos.get_object_info('/'.join(path.split('/')[2:]))
-            self.tree_info_children[path] = objs
-            self.tree_info_expire[path] = time.time() + self.ttl
-            return self.tree_info_children[path]
-        except ClientError:
-            return None
+        with self.path_container(path):
+            try:
+                _path = '/'.join(path.split('/')[2:])
+                objs = self.pithos.get_object_info(_path)
+                self.tree_info_children[path] = objs
+                self.tree_info_expire[path] = time.time() + self.ttl
+                return self.tree_info_children[path]
+            except ClientError:
+                return None
 
     def create_container(self, path):
-        container = self.get_container(path)
         new_container = self.get_object(path)
-        self.pithos.container = container
-        self.pithos.create_container(new_container)
+        with self.path_container(path):
+            self.pithos.create_container(new_container)
 
     def delete_container(self, path):
-        container = self.get_container(path)
         unlink_container = self.get_object(path)
-        self.pithos.container = container
-        self.pithos.purge_container(unlink_container)
+        with self.path_container(path):
+            self.pithos.purge_container(unlink_container)
 
     def create_directory(self, path):
-        container = self.get_container(path)
         new_directory = self.get_object(path)
-        self.pithos.container = container
-        self.pithos.object_put(new_directory, content_length=0,
-                               content_type='application/directory')
+        with self.path_container(path):
+            self.pithos.object_put(new_directory, content_length=0,
+                                   content_type='application/directory')
 
     def delete_directory(self, path):
-        container = self.get_container(path)
         unlink_directory = self.get_object(path)
-        self.pithos_rest.container = container
-        self.pithos_rest.object_delete(unlink_directory, delimiter='/')
+        with self.path_container(path):
+            self.pithos_rest.object_delete(unlink_directory, delimiter='/')
 
     def download_object(self, path, fd):
-        container = self.get_container(path)
         obj = self.get_object(path)
-        self.pithos.container = container
-        self.pithos.download_object(obj, fd)
+        with self.path_container(path):
+            self.pithos.download_object(obj, fd)
 
     def unlink_object(self, path):
-        container = self.get_container(path)
         obj = self.get_object(path)
-        self.pithos.container = container
-        self.pithos.del_object(obj, delimiter='/')
+        with self.path_container(path):
+            self.pithos.del_object(obj, delimiter='/')
 
     def upload_object(self, path, fd):
         fd.seek(0, 2)
         size = fd.tell()
         fd.seek(0)
-        container = self.get_container(path)
         obj = self.get_object(path)
-        self.pithos.container = container
-        self.pithos.upload_object(obj, fd, size=size)
+        with self.path_container(path):
+            self.pithos.upload_object(obj, fd, size=size)
         fd.seek(0)
 
     def rename(self, old, new):
@@ -156,15 +149,21 @@ class PithosAPI:
         new_container = self.get_container(new)
         old_obj = self.get_object(old)
         new_obj = self.get_object(new)
-        self.pithos.container = old_container
-        self.pithos.move_object(old_container, old_obj, new_container, new_obj,
-                                delimiter='/')
+        with self.path_container(old):
+            self.pithos.move_object(old_container, old_obj, new_container,
+                                    new_obj, delimiter='/')
 
     def account_info(self):
         acct_info = self.pithos.get_account_info()
         blocks = int(acct_info['x-account-policy-quota']) / 512
         used = int(acct_info['x-account-bytes-used']) / 512
         return blocks, used
+
+    @contextmanager
+    def path_container(self, path):
+        self.pithos.container = self.get_container(path)
+        yield
+        self.pithos.container = None
 
 
 class PithosFuse(LoggingMixIn, Operations):
