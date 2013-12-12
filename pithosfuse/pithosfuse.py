@@ -124,7 +124,7 @@ class PithosAPI:
 
     def delete_directory(self, path):
         unlink_directory = self.get_object(path)
-        with self.path_container(path):
+        with self.path_rest_container(path):
             self.pithos_rest.object_delete(unlink_directory, delimiter='/')
 
     def download_object(self, path, fd):
@@ -166,6 +166,12 @@ class PithosAPI:
         self.pithos.container = self.get_container(path)
         yield
         self.pithos.container = None
+
+    @contextmanager
+    def path_rest_container(self, path):
+        self.pithos_rest.container = self.get_container(path)
+        yield
+        self.pithos_rest.container = None
 
 
 class PithosFuse(LoggingMixIn, Operations):
