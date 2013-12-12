@@ -38,7 +38,7 @@ def get_pithos_credentials(cloud=None, auth_url=None, token=None):
 
 
 class PithosAPI:
-    def __init__(self, api_url, account, token, ttl):
+    def __init__(self, api_url, account, token, ttl, poolsize):
         self.tree_children = {}
         self.tree_expire = {}
         self.tree_info_expire = {}
@@ -49,8 +49,10 @@ class PithosAPI:
         self.ttl = ttl
         self.pithos = PithosClient(self.api_url, token, account,
                                    container=None)
+        self.pithos.poolsize = poolsize
         self.pithos_rest = PithosRestClient(self.api_url, token, account,
                                             container=None)
+        self.pithos_rest.poolsize = poolsize
         self.containers = self.list_containers()
         if self.containers is None:
             raise FuseOSError(errno.EPERM)
@@ -167,10 +169,11 @@ class PithosAPI:
 
 
 class PithosFuse(LoggingMixIn, Operations):
-    def __init__(self, api_url, account, token, ttl=0, logger=None):
+    def __init__(self, api_url, account, token, ttl=0, poolsize=8,
+                 logger=None):
         if logger is None:
             logger = logging.getLogger("")
-        self.pithos_api = PithosAPI(api_url, account, token, ttl)
+        self.pithos_api = PithosAPI(api_url, account, token, ttl, poolsize)
         self.files = {}
 
     def file_rename(self, old, new):
@@ -222,7 +225,7 @@ class PithosFuse(LoggingMixIn, Operations):
     def statfs(self, path):
         blocks, used = self.pithos_api.account_info()
         return dict(f_bsize=512, f_blocks=blocks, f_bavail=(blocks - used),
-                    f_bfree=(blocks-used))
+                    f_bfree=(blocks - used))
 
     def getattr(self, path, fh=None):
         if path == '/':
@@ -380,6 +383,11 @@ def main():
         dest='cache_ttl',
         default=0,
         help='Tree cache expire TTL (default:0)')
+    common_group.add_option(
+        '-m', '--max-poolsize',
+        dest='poolsize',
+        default=8,
+        help='Max HTTP Pooled connections (default:8)')
 
     debug_group = optparse.OptionGroup(parser, "Debug Options")
     debug_group.add_option(
@@ -450,7 +458,8 @@ def main():
     if not options.foreground:
         logger.info("Starting Pithos+ FUSE in detached mode..")
 
-    FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl), logger),
+    FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl),
+                    int(options.poolsize), logger),
          mount_point,
          **fuse_kv)
 
