@@ -15,6 +15,8 @@ from kamaki.clients.pithos import PithosClient
 from kamaki.clients.pithos.rest_api import PithosRestClient
 from kamaki.clients import ClientError
 from contextlib import contextmanager
+from functools import wraps
+from types import FunctionType
 
 __author__ = 'Chrysostomos Nanakos, Christos Stavrakakis'
 __license__ = 'LGPL'
@@ -174,12 +176,39 @@ class PithosAPI:
         self.pithos_rest.container = None
 
 
+def createPithosAPI(f):
+    @wraps(f)
+    def wrappedMethod(self, *args, **kwargs):
+        if self.pithos_api is None:
+            self.pithos_api = PithosAPI(self.api_url, self.account,
+                                        self.token, self.ttl, self.poolsize)
+        return f(self, *args, **kwargs)
+    return wrappedMethod
+
+
+class PithosAPIMeta(type):
+    def __new__(meta, classname, bases, classdict):
+        for k, v in classdict.items():
+            if type(v) is FunctionType:
+                if not (k.startswith("__") or k.startswith("file_")):
+                    classdict[k] = createPithosAPI(v)
+        return super(PithosAPIMeta, meta).__new__(meta, classname, bases,
+                                                  classdict)
+
+
 class PithosFuse(LoggingMixIn, Operations):
+    __metaclass__ = PithosAPIMeta
+
     def __init__(self, api_url, account, token, ttl=0, poolsize=8,
                  logger=None):
         if logger is None:
             logger = logging.getLogger("")
-        self.pithos_api = PithosAPI(api_url, account, token, ttl, poolsize)
+        self.api_url = api_url
+        self.account = account
+        self.token = token
+        self.ttl = ttl
+        self.poolsize = poolsize
+        self.pithos_api = None
         self.files = {}
 
     def file_rename(self, old, new):
@@ -478,7 +507,7 @@ def main():
                             options.extra_options.split(","))
         fuse_kv.update(extra_options)
 
-    if not options.foreground:
+    if not options.foreground and not options.debug:
         logger.info("Starting Pithos+ FUSE in detached mode..")
 
     FUSE(PithosFuse(api_url, account, token, int(options.cache_ttl),
