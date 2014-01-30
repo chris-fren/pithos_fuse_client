@@ -24,9 +24,10 @@ __version__ = '0.1'
 __email__ = 'cnanakos@grnet.gr, cstavr@grnet.gr'
 
 
-def get_pithos_credentials(cloud=None, auth_url=None, token=None):
+def get_pithos_credentials(cloud=None, auth_url=None, token=None,
+                           config_file=None):
     if auth_url is None:
-        config = kamaki_config.Config()
+        config = kamaki_config.Config(path=config_file)
         if cloud is None:
             cloud = config.get("global", "default_cloud")
         auth_url = config.get_cloud(cloud, "url")
@@ -440,6 +441,11 @@ def main():
         dest='poolsize',
         default=8,
         help='Max HTTP Pooled connections (default:8)')
+    common_group.add_option(
+        '-k', '--config',
+        dest='config_file',
+        default=None,
+        help='Path of kamaki configuration file to use')
 
     debug_group = optparse.OptionGroup(parser, "Debug Options")
     debug_group.add_option(
@@ -491,7 +497,8 @@ def main():
 
     api_url, account, token = get_pithos_credentials(options.cloud,
                                                      options.auth_url,
-                                                     options.token)
+                                                     options.token,
+                                                     options.config_file)
 
     logger.info("Pithos+ API URL: '%s'", api_url)
     logger.info("Pithos+ API Account: '%s'", account)
