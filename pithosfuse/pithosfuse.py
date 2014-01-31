@@ -512,6 +512,13 @@ def main():
     if options.extra_options:
         extra_options = map(lambda kv: kv.split('='),
                             options.extra_options.split(","))
+
+        for option in extra_options:
+            if option[1] in ['True', 'true', 'TRUE']:
+                option[1] = True
+            elif option[1] in ['False', 'false', 'FALSE']:
+                option[1] = False
+
         fuse_kv.update(extra_options)
 
     if not options.foreground and not options.debug:
